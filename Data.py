@@ -1,5 +1,6 @@
 import os
 import numpy as np
+import random
 from torch.utils.data import Dataset
 
 
@@ -19,6 +20,7 @@ class CustomDataset(Dataset):
             for filename in os.listdir(destination_directory)
             if filename.endswith(".npy")
         ]
+        random.shuffle(self.file_list)
 
     def __len__(self):
         return len(self.file_list)

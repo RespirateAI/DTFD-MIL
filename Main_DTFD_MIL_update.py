@@ -158,48 +158,47 @@ def main():
             distill=params.distill_type,
         )
         print_log(f">>>>>>>>>>> Validation Epoch: {ii}", log_file)
-        # auc_val = test_attention_DTFD_preFeat_MultipleMean(
-        #     classifier=classifier,
-        #     dimReduction=dimReduction,
-        #     attention=attention,
-        #     UClassifier=attCls,
-        #     criterion=ce_cri,
-        #     epoch=ii,
-        #     params=params,
-        #     f_log=log_file,
-        #     writer=writer,
-        #     numGroup=params.numGroup_test,
-        #     total_instance=params.total_instance_test,
-        #     distill=params.distill_type,
-        # )
+        auc_val = test_attention_DTFD_preFeat_MultipleMean(
+            classifier=classifier,
+            dimReduction=dimReduction,
+            attention=attention,
+            UClassifier=attCls,
+            criterion=ce_cri,
+            epoch=ii,
+            params=params,
+            f_log=log_file,
+            writer=writer,
+            numGroup=params.numGroup_test,
+            total_instance=params.total_instance_test,
+            distill=params.distill_type,
+        )
         print_log(" ", log_file)
         print_log(f">>>>>>>>>>> Test Epoch: {ii}", log_file)
         # tauc = test_attention_DTFD_preFeat_MultipleMean(classifier=classifier, dimReduction=dimReduction, attention=attention,
         #                                                 UClassifier=attCls, mDATA_list=(SlideNames_test, FeatList_test, Label_test), criterion=ce_cri, epoch=ii,  params=params, f_log=log_file, writer=writer, numGroup=params.numGroup_test, total_instance=params.total_instance_test, distill=params.distill_type)
         print_log(" ", log_file)
 
-        # if ii > int(params.EPOCH * 0.8):
-        #     if auc_val > best_auc:
-        #         best_auc = auc_val
-        #         best_epoch = ii
-        #         # test_auc = tauc
-        #         if params.isSaveModel:
-        #             tsave_dict = {
-        #                 "classifier": classifier.state_dict(),
-        #                 "dim_reduction": dimReduction.state_dict(),
-        #                 "attention": attention.state_dict(),
-        #                 "att_classifier": attCls.state_dict(),
-        #             }
-        #             torch.save(tsave_dict, save_dir)
+        if ii > int(params.EPOCH * 0.8):
+            if auc_val > best_auc:
+                best_auc = auc_val
+                best_epoch = ii
+                test_auc = best_auc
+                if params.isSaveModel:
+                    tsave_dict = {
+                        "classifier": classifier.state_dict(),
+                        "dim_reduction": dimReduction.state_dict(),
+                        "attention": attention.state_dict(),
+                        "att_classifier": attCls.state_dict(),
+                    }
+                    torch.save(tsave_dict, save_dir)
 
-        #     print_log(f" test auc: {test_auc}, from epoch {best_epoch}", log_file)
+            print_log(f" test auc: {test_auc}, from epoch {best_epoch}", log_file)
 
         scheduler0.step()
         scheduler1.step()
 
 
 def test_attention_DTFD_preFeat_MultipleMean(
-    mDATA_list,
     classifier,
     dimReduction,
     attention,
@@ -214,12 +213,15 @@ def test_attention_DTFD_preFeat_MultipleMean(
     distill="MaxMinS",
 ):
 
+    data = CustomDataset("./Data/split_test")
+    dataloader = DataLoader(data, params.batch_size, collate_fn=custom_collate)
+
     classifier.eval()
     attention.eval()
     dimReduction.eval()
     UClassifier.eval()
 
-    SlideNames, FeatLists, Label = mDATA_list
+    # SlideNames, FeatLists, Label = mDATA_list
     instance_per_group = total_instance // numGroup
 
     test_loss0 = AverageMeter()
@@ -232,22 +234,26 @@ def test_attention_DTFD_preFeat_MultipleMean(
 
     with torch.no_grad():
 
-        numSlides = len(SlideNames)
+        numSlides = len(data)
         numIter = numSlides // params.batch_size_v
         tIDX = list(range(numSlides))
 
-        for idx in range(numIter):
+        # for idx in range(numIter):
+        for batch in dataloader:
 
-            tidx_slide = tIDX[
-                idx * params.batch_size_v : (idx + 1) * params.batch_size_v
-            ]
-            slide_names = [SlideNames[sst] for sst in tidx_slide]
-            tlabel = [Label[sst] for sst in tidx_slide]
-            label_tensor = torch.LongTensor(tlabel).to(params.device)
-            batch_feat = [FeatLists[sst].to(params.device) for sst in tidx_slide]
+            # tidx_slide = tIDX[
+            #     idx * params.batch_size_v : (idx + 1) * params.batch_size_v
+            # ]
+            slide_names_batch = batch["slide_name"]
+            features_batch = batch["features"]
+            labels_batch = batch["label"]
+            # slide_names = [SlideNames[sst] for sst in tidx_slide]
+            # tlabel = [Label[sst] for sst in tidx_slide]
+            label_tensor = torch.LongTensor(labels_batch).to(params.device)
+            batch_feat = [torch.tensor(f).to(params.device) for f in features_batch]
 
             for tidx, tfeat in enumerate(batch_feat):
-                tslideName = slide_names[tidx]
+                tslideName = slide_names_batch[tidx]
                 tslideLabel = label_tensor[tidx].unsqueeze(0)
                 midFeat = dimReduction(tfeat)
 
@@ -373,7 +379,7 @@ def train_attention_preFeature_DTFD(
 ):
 
     # SlideNames_list, mFeat_list, Label_dict = mDATA_list
-    data = CustomDataset("./Data/split")
+    data = CustomDataset("./Data/split_train")
     dataloader = DataLoader(data, params.batch_size, collate_fn=custom_collate)
 
     classifier.train()
@@ -414,6 +420,7 @@ def train_attention_preFeature_DTFD(
 
             tfeat_tensor = torch.tensor(features_batch[tidx])
             tfeat_tensor = tfeat_tensor.to(params.device)
+            print("Slide", tfeat_tensor.shape)
 
             feat_index = list(range(tfeat_tensor.shape[0]))
             random.shuffle(feat_index)
@@ -427,11 +434,17 @@ def train_attention_preFeature_DTFD(
                     dim=0,
                     index=torch.LongTensor(tindex).to(params.device),
                 )
+                print("Patch", subFeat_tensor.shape)
                 tmidFeat = dimReduction(subFeat_tensor)
+                print("Mid", tmidFeat.shape)
                 tAA = attention(tmidFeat).squeeze(0)
+                print("Attention", tAA.shape)
                 tattFeats = torch.einsum("ns,n->ns", tmidFeat, tAA)  ### n x fs
+                print("AttFeats", tattFeats.shape)
                 tattFeat_tensor = torch.sum(tattFeats, dim=0).unsqueeze(0)  ## 1 x fs
+                print("AttFeatTensor", tattFeat_tensor.shape)
                 tPredict = classifier(tattFeat_tensor)  ### 1 x 2
+                print("Predict", tPredict.shape)
                 slide_sub_preds.append(tPredict)
 
                 patch_pred_logits = get_cam_1d(
@@ -528,6 +541,6 @@ def print_log(tstr, f):
 
 
 if __name__ == "__main__":
-    torch.autograd.set_detect_anomaly(True)
+    # torch.autograd.set_detect_anomaly(True)
 
     main()
