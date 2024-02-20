@@ -1,0 +1,13 @@
+combine_csv: COmbine PRediction csv files
+
+LungData: Dataset class for loading patchified npy files
+
+Data: Custom dataset for WSI images
+
+Main_DTFD_MIL_update: Updated for WSi dataloader
+
+Main_DTFD_MIL_update2: No random
+
+Main_DTFD_MIL_update3_dras: Final for DrasCLR with 128 embeddings and without Dimreduction 
+Main_DTFD_MIL_update3_resnet: Final for Resnet with Dimreduction
+
