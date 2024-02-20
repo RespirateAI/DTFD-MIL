@@ -52,12 +52,16 @@ def reOrganize_mDATA_test(mDATA, destination_directory, testMask_dir):
     SlideNames = []
     FeatList = []
     Label = []
+
+    count = 0
     for slide_name in mDATA.keys():
         SlideNames.append(slide_name)
         print(f"Slidename: {slide_name}")
 
         if slide_name in tumorSlides:
             label = 1
+            count += 1
+            print("Tumor")
         else:
             label = 0
         # Label.append(label)
@@ -78,6 +82,8 @@ def reOrganize_mDATA_test(mDATA, destination_directory, testMask_dir):
         np.save(file_path, {"featGroup": featGroup.numpy(), "label": label})
 
         print(f"Saved {slide_name}")
+
+    print(f"Total tumor slides: {count}")
 
     return SlideNames, FeatList, Label
 

@@ -178,19 +178,18 @@ def main():
         #                                                 UClassifier=attCls, mDATA_list=(SlideNames_test, FeatList_test, Label_test), criterion=ce_cri, epoch=ii,  params=params, f_log=log_file, writer=writer, numGroup=params.numGroup_test, total_instance=params.total_instance_test, distill=params.distill_type)
         print_log(" ", log_file)
 
-        if ii > int(params.EPOCH * 0.8):
+        if ii > int(params.EPOCH * 0.25):
             if auc_val > best_auc:
                 best_auc = auc_val
                 best_epoch = ii
                 test_auc = best_auc
-                if params.isSaveModel:
-                    tsave_dict = {
-                        "classifier": classifier.state_dict(),
-                        "dim_reduction": dimReduction.state_dict(),
-                        "attention": attention.state_dict(),
-                        "att_classifier": attCls.state_dict(),
-                    }
-                    torch.save(tsave_dict, save_dir)
+                tsave_dict = {
+                    "classifier": classifier.state_dict(),
+                    "dim_reduction": dimReduction.state_dict(),
+                    "attention": attention.state_dict(),
+                    "att_classifier": attCls.state_dict(),
+                }
+                torch.save(tsave_dict, save_dir)
 
             print_log(f" test auc: {test_auc}, from epoch {best_epoch}", log_file)
 
@@ -420,7 +419,7 @@ def train_attention_preFeature_DTFD(
 
             tfeat_tensor = torch.tensor(features_batch[tidx])
             tfeat_tensor = tfeat_tensor.to(params.device)
-            print("Slide", tfeat_tensor.shape)
+            # print("Slide", tfeat_tensor.shape)
 
             feat_index = list(range(tfeat_tensor.shape[0]))
             random.shuffle(feat_index)
@@ -434,17 +433,17 @@ def train_attention_preFeature_DTFD(
                     dim=0,
                     index=torch.LongTensor(tindex).to(params.device),
                 )
-                print("Patch", subFeat_tensor.shape)
+                # print("Patch", subFeat_tensor.shape)
                 tmidFeat = dimReduction(subFeat_tensor)
-                print("Mid", tmidFeat.shape)
+                # print("Mid", tmidFeat.shape)
                 tAA = attention(tmidFeat).squeeze(0)
-                print("Attention", tAA.shape)
+                # print("Attention", tAA.shape)
                 tattFeats = torch.einsum("ns,n->ns", tmidFeat, tAA)  ### n x fs
-                print("AttFeats", tattFeats.shape)
+                # print("AttFeats", tattFeats.shape)
                 tattFeat_tensor = torch.sum(tattFeats, dim=0).unsqueeze(0)  ## 1 x fs
-                print("AttFeatTensor", tattFeat_tensor.shape)
+                # print("AttFeatTensor", tattFeat_tensor.shape)
                 tPredict = classifier(tattFeat_tensor)  ### 1 x 2
-                print("Predict", tPredict.shape)
+                # print("Predict", tPredict.shape)
                 slide_sub_preds.append(tPredict)
 
                 patch_pred_logits = get_cam_1d(
